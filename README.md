@@ -5,7 +5,7 @@ Lightweight CLI system monitor — lightweight replacement for htop + psensors.
 [![Platform](https://img.shields.io/badge/platform-Linux-blue?logo=linux&logoColor=white)](https://www.linux.org/)
 [![Python](https://img.shields.io/badge/language-python_3.8+-green)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-yellow)](https://opensource.org/license/MIT)
-[![Stars](https://img.shields.io/github/stars/Luquas95/Live-M?style=social)](https://github.com/Luquas95/Live-M)
+[![Stars](https://img.shields.io/github/stars/Icenux/Live-M?style=social)](https://github.com/Icenux/Live-M)
 
 ![Screenshot of Live-M running in a terminal (fake demo data)](docs/screenshot.png)
 

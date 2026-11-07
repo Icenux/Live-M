@@ -1,0 +1,89 @@
+name: Release
+# A tag X.Y.Z (no "v") on main makes the release; it must equal __version__ in src/livem/__init__.py.
+#   build -> test of the install -> GitHub Release.
+# GitHub only builds and tests the package (artifact "packages"). The signing key never reaches GitHub:
+# the maintainer runs icenux-app-sign-upload.sh Icenux/Live-M livem X.Y.Z (~/Documents/CC/bin) on their
+# computer, which downloads the artifact, signs SHA256SUMS and attaches livem_all.deb, SHA256SUMS and
+# SHA256SUMS.asc to the release. The shared APT repository Icenux (github.com/Icenux/icenux) takes the
+# package from there.
+on:
+  push:
+    tags: ["[0-9]*"]
+permissions:
+  contents: read
+concurrency:
+  group: release
+  cancel-in-progress: false
+defaults:
+  run:
+    shell: bash
+env:
+  NFPM_VERSION: "2.47.0"
+  NFPM_SHA256: "0660ca602b2d2d2ae4781a06c692b3eeb9d437ffea05b831d76e41f4a3188783"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: The tag must be on main
+        run: git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+      - name: nfpm
+        run: |
+          curl -fsSL -o /tmp/nfpm.tgz \
+            "https://github.com/goreleaser/nfpm/releases/download/v${NFPM_VERSION}/nfpm_${NFPM_VERSION}_Linux_x86_64.tar.gz"
+          echo "${NFPM_SHA256}  /tmp/nfpm.tgz" | sha256sum -c -
+          sudo tar -xzf /tmp/nfpm.tgz -C /usr/local/bin nfpm
+      - name: Package
+        run: bash packaging/package.sh "$GITHUB_REF_NAME"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: packages
+          path: dist/release/
+          if-no-files-found: error
+
+  test-install:
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ["ubuntu:22.04", "ubuntu:24.04", "debian:12"]
+    container: ${{ matrix.image }}
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: packages
+          path: rel
+      - name: Install the package
+        run: |
+          apt-get update -qq
+          DEBIAN_FRONTEND=noninteractive apt-get install -y -qq "$PWD/rel/livem_all.deb"
+          test -f /etc/apt/sources.list.d/icenux.list
+          test -f /usr/share/keyrings/icenux.asc
+      - name: livem runs
+        run: |
+          out=$(livem --version)
+          echo "$out"
+          test "$out" = "livem ${GITHUB_REF_NAME}"
+
+  release:
+    needs: test-install
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Release
+        run: gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --title "Live-M $GITHUB_REF_NAME" --generate-notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+      - name: Notify the Icenux site
+        # The site (Icenux/icenux.github.io) rebuilds on this event and picks up the new version.
+        continue-on-error: true
+        run: gh api repos/Icenux/icenux.github.io/dispatches -f event_type=app-released
+        env:
+          GH_TOKEN: ${{ secrets.SITE_DISPATCH_TOKEN }}

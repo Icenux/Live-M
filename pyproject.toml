@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "livem"
+dynamic = ["version"]
+description = "Lightweight CLI system monitor: per-core CPU, memory, disks, temperatures and Wi-Fi, without the process list."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Lukas" }]
+requires-python = ">=3.8"
+keywords = ["system monitor", "htop", "curses", "terminal"]
+classifiers = [
+    "Environment :: Console :: Curses",
+    "Operating System :: POSIX :: Linux",
+    "Topic :: System :: Monitoring",
+]
+dependencies = ["psutil"]
+
+[project.urls]
+Homepage = "https://github.com/Icenux/Live-M"
+
+[project.scripts]
+livem = "livem.app:main"
+
+[tool.setuptools.dynamic]
+version = { attr = "livem.__version__" }
+
+[tool.setuptools.packages.find]
+where = ["src"]

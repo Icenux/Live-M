@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import argparse
 import curses
 import datetime
@@ -10,7 +8,8 @@ import time
 
 import psutil
 
-VERSION = "2.0.0"
+from livem import __version__ as VERSION
+
 INTERVAL_MIN = 0.5
 INTERVAL_MAX = 10.0
 INTERVAL_STEP = 0.5

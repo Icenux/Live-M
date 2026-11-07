@@ -21,7 +21,10 @@ depends:
   - python3-psutil
 
 contents:
-  - src: livem
+  - src: src/livem/
+    dst: /usr/lib/python3/dist-packages/livem
+    type: tree
+  - src: packaging/files/livem
     dst: /usr/bin/livem
     file_info: { mode: 0755 }
 

@@ -27,8 +27,20 @@ All panels update live. No process list — that's why it's lighter than htop.
 
 ## Installation
 
+From the Icenux package repository (Debian / Ubuntu / Mint) — later versions then arrive with `apt upgrade`:
+
 ```bash
-sudo dpkg -i livem_2.0.deb
+sudo curl -fsSL https://icenux.github.io/icenux/icenux.asc -o /usr/share/keyrings/icenux.asc
+echo 'deb [signed-by=/usr/share/keyrings/icenux.asc] https://icenux.github.io/icenux/apt ./' \
+  | sudo tee /etc/apt/sources.list.d/icenux.list
+sudo apt update && sudo apt install livem
+```
+
+From source:
+
+```bash
+git clone https://github.com/Icenux/Live-M.git && cd Live-M
+pip install .          # or run without installing: PYTHONPATH=src python3 -m livem
 ```
 
 ## Usage

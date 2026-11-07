@@ -1,5 +1,5 @@
 name: Release
-# A tag X.Y.Z (no "v") on main makes the release; it must equal VERSION in ./livem.
+# A tag X.Y.Z (no "v") on main makes the release; it must equal __version__ in src/livem/__init__.py.
 #   build -> test of the install -> GitHub Release.
 # GitHub only builds and tests the package (artifact "packages"). The signing key never reaches GitHub:
 # the maintainer runs icenux-app-sign-upload.sh Icenux/Live-M livem X.Y.Z (~/Documents/CC/bin) on their

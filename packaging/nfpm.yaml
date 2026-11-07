@@ -1,6 +1,7 @@
-# The .deb of Live-M, called by packaging/package.sh. Besides the application it sets up the shared
-# Icenux APT repository (github.com/Icenux/icenux, by packaging/files/postinst.sh), so later versions
-# arrive with the ordinary system update.
+# The .deb and the Arch package (.pkg.tar.zst) of Live-M, called by packaging/package.sh.
+# Besides the application the .deb sets up the shared Icenux APT repository (github.com/Icenux/icenux,
+# by packaging/files/postinst.sh), so later versions arrive with the ordinary system update. The Arch
+# package is served by the Icenux pacman repository (the same repository, /arch/x86_64).
 name: livem
 arch: all
 platform: linux
@@ -19,20 +20,43 @@ license: MIT
 depends:
   - python3
   - python3-psutil
+overrides:
+  archlinux:
+    depends:
+      - python
+      - python-psutil
 
 contents:
+  # Debian / Ubuntu: the module goes to the system Python's dist-packages
   - src: src/livem/
     dst: /usr/lib/python3/dist-packages/livem
     type: tree
+    packager: deb
   - src: packaging/files/livem
     dst: /usr/bin/livem
     file_info: { mode: 0755 }
+    packager: deb
+
+  # Arch: the Python version changes with rolling updates, so the module lives next to the launcher
+  - src: src/livem/
+    dst: /usr/lib/livem/livem
+    type: tree
+    packager: archlinux
+  - src: packaging/files/livem-arch
+    dst: /usr/bin/livem
+    file_info: { mode: 0755 }
+    packager: archlinux
+  - src: LICENSE
+    dst: /usr/share/licenses/livem/LICENSE
+    packager: archlinux
 
   # the Icenux package source: the files lie next to the application, postinst.sh puts them in place
   - src: packaging/files/icenux.asc
     dst: /usr/lib/livem/icenux.asc
+    packager: deb
   - src: packaging/files/icenux.list
     dst: /usr/lib/livem/icenux.list
+    packager: deb
 
 scripts:
   postinstall: packaging/files/postinst.sh

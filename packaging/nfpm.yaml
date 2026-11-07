@@ -1,0 +1,35 @@
+# The .deb of Live-M, called by packaging/package.sh. Besides the application it sets up the shared
+# Icenux APT repository (github.com/Icenux/icenux, by packaging/files/postinst.sh), so later versions
+# arrive with the ordinary system update.
+name: livem
+arch: all
+platform: linux
+version: ${VERSION}
+release: 1
+section: utils
+priority: optional
+maintainer: Lukas <https://github.com/Icenux/Live-M>
+description: |-
+  Lightweight CLI system monitor.
+  Live replacement for htop + psensors: CPU cores, RAM, SWAP, disk usage, temperatures and Wi-Fi.
+vendor: Icenux
+homepage: https://github.com/Icenux/Live-M
+license: MIT
+
+depends:
+  - python3
+  - python3-psutil
+
+contents:
+  - src: livem
+    dst: /usr/bin/livem
+    file_info: { mode: 0755 }
+
+  # the Icenux package source: the files lie next to the application, postinst.sh puts them in place
+  - src: packaging/files/icenux.asc
+    dst: /usr/lib/livem/icenux.asc
+  - src: packaging/files/icenux.list
+    dst: /usr/lib/livem/icenux.list
+
+scripts:
+  postinstall: packaging/files/postinst.sh

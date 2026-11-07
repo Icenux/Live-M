@@ -1,0 +1,2 @@
+# Repozitář Icenux (přidal ho balíček ccc) – nové verze přijdou s aktualizací systému.
+deb [signed-by=/usr/share/keyrings/icenux.asc] https://icenux.github.io/icenux/apt ./

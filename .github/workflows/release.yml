@@ -3,7 +3,7 @@ name: Release
 #   build -> test of the install -> GitHub Release.
 # GitHub only builds and tests the package (artifact "packages"). The signing key never reaches GitHub:
 # the maintainer runs icenux-app-sign-upload.sh Icenux/Live-M livem X.Y.Z (~/Documents/CC/bin) on their
-# computer, which downloads the artifact, signs SHA256SUMS and attaches livem_all.deb, SHA256SUMS and
+# computer, which downloads the artifact, signs SHA256SUMS and attaches livem_all.deb, the Arch package livem-X.Y.Z-1-any.pkg.tar.zst, SHA256SUMS and
 # SHA256SUMS.asc to the release. The shared APT repository Icenux (github.com/Icenux/icenux) takes the
 # package from there.
 on:
@@ -70,8 +70,27 @@ jobs:
           echo "$out"
           test "$out" = "livem ${GITHUB_REF_NAME}"
 
+  test-install-arch:
+    needs: build
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: packages
+          path: rel
+      - name: Install the package
+        run: |
+          pacman -Syu --noconfirm
+          pacman -U --noconfirm "$PWD"/rel/livem-*-any.pkg.tar.zst
+      - name: livem runs
+        run: |
+          out=$(livem --version)
+          echo "$out"
+          test "$out" = "livem ${GITHUB_REF_NAME}"
+
   release:
-    needs: test-install
+    needs: [test-install, test-install-arch]
     runs-on: ubuntu-latest
     permissions:
       contents: write

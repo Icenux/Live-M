@@ -483,7 +483,7 @@ def draw_footer(stdscr, interval: float, procs_state: str = "off") -> None:
     procs_hint = {"off": "[p] processes", "on": "[p] hide processes",
                   "hidden": "[p] processes (terminal too small)"}[procs_state]
     footer = f"[q] quit  [+/-] interval  {procs_hint}  [current: {interval:.1f}s]"
-    ver = "ver: 2.0"
+    ver = f"ver: {VERSION}"
     try:
         stdscr.addstr(max_y - 1, 0, footer[:max_x - 1])
         ver_x = max_x - len(ver) - 1

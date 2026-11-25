@@ -1,0 +1,13 @@
+version: 2
+updates:
+  # Actions are pinned to commit SHAs, so they never update on their own. Dependabot bumps the SHA and the
+  # version comment together. The Python dependencies (psutil, setuptools) are intentionally unpinned, and
+  # nfpm (NFPM_VERSION + NFPM_SHA256 in release.yml) is not covered by Dependabot: bump it by hand.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      actions:
+        patterns: ["*"]

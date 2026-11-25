@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "livem"
 dynamic = ["version"]
-description = "Lightweight CLI system monitor: per-core CPU, memory, disks, temperatures and Wi-Fi, without the process list."
+description = "Lightweight CLI system monitor: per-core CPU, memory, disks, temperatures and Wi-Fi, with an optional top-processes panel (no full process list)."
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]

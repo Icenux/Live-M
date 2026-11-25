@@ -22,7 +22,8 @@ All panels update live. There is no full process list — that's why it's lighte
 
 ## Requirements
 
-- Linux (Debian / Ubuntu / Mint / Arch)
+- Linux, any distribution (pure Python on `/proc` and `/sys`, so not tied to a CPU architecture;
+  ready-made packages exist for Debian / Ubuntu / Mint and Arch)
 - Python 3.10+ (Ubuntu 22.04 / Mint 21 and newer; Arch ships the latest)
 - python3-psutil
 

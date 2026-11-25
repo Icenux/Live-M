@@ -35,15 +35,24 @@ jobs:
           python-version: ${{ matrix.python }}
       - name: Install
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install .
+          python -m pip install --upgrade pip psutil
+          if [ "${{ matrix.python }}" = "3.8" ]; then
+            # `pip install .` is broken on 3.8: pyproject.toml uses SPDX `license = "MIT"` + `license-files`,
+            # which need setuptools >= 77, and 3.8 gets at most 75.3. The .deb/Arch packages do not use
+            # pip, so 3.8 is tested straight from source (see issue/PR discussion before dropping this).
+            echo "PYTHONPATH=$PWD/src" >> "$GITHUB_ENV"
+            echo "LIVEM=python -m livem" >> "$GITHUB_ENV"
+          else
+            python -m pip install .
+            echo "LIVEM=livem" >> "$GITHUB_ENV"
+          fi
       - name: Byte-compile (syntax check on this Python version)
         run: python -m compileall -q src tests tools
       - name: Unit tests
         run: python -m unittest discover -s tests -v
-      - name: Smoke test of the installed package
+      - name: Smoke test (installed package, or source on 3.8)
         run: |
           cd "$RUNNER_TEMP"   # not the repo dir, so the installed copy is imported
-          livem --version
-          livem --help | grep -- --procs
+          $LIVEM --version
+          $LIVEM --help | grep -- --procs
           python -c "import livem.procs as p; assert p.read_all(), 'no processes read'"

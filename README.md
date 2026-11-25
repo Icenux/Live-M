@@ -15,7 +15,7 @@ Lightweight CLI system monitor — lightweight replacement for htop + psensors.
 - **RAM & SWAP** — usage bars with used/total in GiB and percentage
 - **Disks** — usage bars for all real mountpoints (skips tmpfs, snap, /boot)
 - **Temperatures** — CPU package (full-width bar) + per-core bars; other detected sensors
-- **Wi-Fi** — live ↓/↑ speed shown in the header
+- **Wi-Fi** — live ↓/↑ speed shown in the header (the wireless interface is detected from the kernel, whatever it is named)
 - **Top processes** *(optional, off by default)* — the 5 busiest processes by CPU and by RAM; press `p` to show them
 
 All panels update live. There is no full process list — that's why it's lighter than htop. The top-processes panel is opt-in and sampled slowly (see [Why not htop?](#why-not-htop)).

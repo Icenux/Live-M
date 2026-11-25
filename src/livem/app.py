@@ -34,10 +34,40 @@ _SKIP_MOUNT_EXACT    = {'/boot', '/boot/efi'}
 _SKIP_SENSOR_CHIPS   = {'iwlwifi_1', 'pch_skylake'}
 
 
-def _find_wifi_iface(counters: dict) -> str:
-    """Return first wl* or ww* interface name found in counters, or ''."""
+SYSFS_NET = "/sys/class/net"
+
+
+def _is_wireless(iface: str, sysfs: str = SYSFS_NET) -> bool:
+    """True if the kernel marks `iface` as a wireless (cfg80211) interface."""
+    base = os.path.join(sysfs, iface)
+    return os.path.isdir(os.path.join(base, "wireless")) or os.path.exists(
+        os.path.join(base, "phy80211"))
+
+
+def _is_up(iface: str, sysfs: str = SYSFS_NET) -> bool:
+    try:
+        with open(os.path.join(sysfs, iface, "operstate")) as f:
+            return f.read().strip() == "up"
+    except OSError:
+        return False
+
+
+def _find_wifi_iface(counters: dict, sysfs: str = SYSFS_NET) -> str:
+    """Return the interface whose speed goes in the header, or ''.
+
+    Detection does not depend on the interface name: the kernel marks wireless
+    interfaces in sysfs. Preference: a wireless interface that is up, any
+    wireless interface, then (sysfs unavailable, e.g. some containers, or a
+    mobile modem) the old name guess wl* / ww*.
+    """
+    wireless = sorted(n for n in counters if _is_wireless(n, sysfs))
+    for name in wireless:
+        if _is_up(name, sysfs):
+            return name
+    if wireless:
+        return wireless[0]
     for prefix in ('wl', 'ww'):
-        for name in counters:
+        for name in sorted(counters):
             if name.startswith(prefix):
                 return name
     return ''

@@ -3,12 +3,12 @@ import curses
 import datetime
 import os
 import socket
-import subprocess
 import time
 
 import psutil
 
 from livem import __version__ as VERSION
+from livem.procs import ProcSampler
 
 INTERVAL_MIN = 0.5
 INTERVAL_MAX = 10.0
@@ -16,6 +16,10 @@ INTERVAL_STEP = 0.5
 
 PARTITION_TTL = 60.0   # re-scan mountpoints at most once per minute
 SENSOR_TTL    =  5.0   # re-read sensors every 5 s (they change slowly)
+PROC_TTL      =  3.0   # process panel (opt-in, `p`): sample every 3 s, not every frame
+PROC_COUNT    =  5     # rows per process list
+PROC_ROWS     = 1 + PROC_COUNT   # heading + rows
+PROC_WIDE_MIN = 64     # columns needed for CPU and RAM lists side by side
 
 # curses color pair IDs
 PAIR_HEADER  = 1
@@ -46,6 +50,14 @@ def _fmt_speed(bps: float) -> str:
     if bps < 1_048_576:
         return f"{bps / 1024:.1f} KB/s"
     return f"{bps / 1_048_576:.1f} MB/s"
+
+
+def _fmt_mem(nbytes: int) -> str:
+    """Format a byte count as MiB/GiB for the process lists."""
+    gib = nbytes / 1_073_741_824
+    if gib >= 1:
+        return f"{gib:.1f} GiB"
+    return f"{nbytes / 1_048_576:.0f} MiB"
 
 
 def uptime_str() -> str:
@@ -390,10 +402,57 @@ def draw_temperatures(stdscr, row: int, no_color: bool, sensors: dict) -> int:
     return row
 
 
-def draw_footer(stdscr, interval: float) -> None:
-    """Draw help bar pinned to the last terminal row."""
+def draw_procs(stdscr, row: int, no_color: bool, sampler: ProcSampler) -> int:
+    """Draw the opt-in process panel: top CPU and top RAM processes.
+
+    Side by side on wide terminals; on narrow ones only the CPU list (with a
+    RAM column). Returns the next free row.
+    """
+    _, max_x = stdscr.getmaxyx()
+    wide = max_x >= PROC_WIDE_MIN
+    half = max_x // 2
+
+    def put(r: int, c: int, text: str, attr: int = 0) -> None:
+        try:
+            stdscr.addstr(r, c, text[:max(0, max_x - c - 1)], attr)
+        except curses.error:
+            pass
+
+    def cpu_attr(pct: float) -> int:
+        return 0 if no_color else curses.color_pair(cpu_color_pair(min(pct, 100.0)))
+
+    sect = curses.A_BOLD if no_color else (curses.color_pair(PAIR_SECTION) | curses.A_BOLD)
+    put(row, 0, "Top by CPU" if wide else "Top processes", sect)
+    if wide:
+        put(row, half, "Top by RAM", sect)
+
+    if not sampler.ready:
+        put(row + 1, 2, "sampling…")
+        return row + PROC_ROWS
+
+    name_w = max(6, min(15, (half if wide else max_x) - 14))
+    for i in range(PROC_COUNT):
+        r = row + 1 + i
+        if i < len(sampler.top_cpu):
+            pr = sampler.top_cpu[i]
+            tail = f" {pr.cpu:5.1f}%" if wide else f" {pr.cpu:5.1f}%  {_fmt_mem(pr.rss):>8}"
+            put(r, 2, f"{pr.name:<{name_w}.{name_w}}")
+            put(r, 2 + name_w, tail, cpu_attr(pr.cpu))
+        if wide and i < len(sampler.top_mem):
+            pr = sampler.top_mem[i]
+            put(r, half + 2, f"{pr.name:<{name_w}.{name_w}} {_fmt_mem(pr.rss):>8}")
+    return row + PROC_ROWS
+
+
+def draw_footer(stdscr, interval: float, procs_state: str = "off") -> None:
+    """Draw help bar pinned to the last terminal row.
+
+    procs_state: 'off' | 'on' | 'hidden' (asked for, but the terminal is too small).
+    """
     max_y, max_x = stdscr.getmaxyx()
-    footer = f"[q] quit  [+/-] interval  [current: {interval:.1f}s]"
+    procs_hint = {"off": "[p] processes", "on": "[p] hide processes",
+                  "hidden": "[p] processes (terminal too small)"}[procs_state]
+    footer = f"[q] quit  [+/-] interval  {procs_hint}  [current: {interval:.1f}s]"
     ver = "ver: 2.0"
     try:
         stdscr.addstr(max_y - 1, 0, footer[:max_x - 1])
@@ -406,12 +465,14 @@ def draw_footer(stdscr, interval: float) -> None:
 
 def _layout(max_y: int, max_x: int,
             n_cores: int, n_disks: int, n_sensors: int,
-            hdr_rows: int = 1) -> tuple:
+            hdr_rows: int = 1, proc_rows: int = 0) -> tuple:
     """Return (compact, sep, max_disks) for current terminal dimensions.
 
     compact   — skip per-core bars and inter-panel blank lines
     sep       — blank rows between panels (1 or 0)
     max_disks — max disks to show in compact mode (0 = no limit)
+    proc_rows — rows the process panel needs (0 = panel off); the panel is
+                never shown in compact mode
     """
     sep = 1 if max_y >= 30 else 0
     two_col = max_x >= 60
@@ -429,6 +490,7 @@ def _layout(max_y: int, max_x: int,
         + mem_rows  + sep
         + disk_rows + sep
         + temp_rows
+        + ((sep + proc_rows) if proc_rows else 0)
         + 1         # footer
     )
 
@@ -476,6 +538,9 @@ def main_loop(stdscr, args) -> None:
     sensors_fetched    = 0.0
     wifi_iface         = None   # None = not yet probed; '' = not found
     net_prev           = None   # (bytes_recv, bytes_sent, monotonic_time)
+
+    show_procs = args.procs      # user's wish (toggle with `p`)
+    sampler    = None            # exists only while the panel is actually visible
 
     interval = max(INTERVAL_MIN, min(INTERVAL_MAX, args.interval))
     if in_tmux:
@@ -540,7 +605,22 @@ def main_loop(stdscr, args) -> None:
         n_disks   = len(partitions_cache)
         n_sensors = sum(len(v) for v in sensors_cache.values()) if sensors_cache else 0
         compact, sep, max_disks = _layout(
-            max_y, max_x, n_cores, n_disks, n_sensors, hdr_rows_est)
+            max_y, max_x, n_cores, n_disks, n_sensors, hdr_rows_est,
+            proc_rows=PROC_ROWS if show_procs else 0)
+        procs_visible = show_procs
+        if show_procs and compact:
+            # No room for the panel: fall back to the normal layout without it.
+            compact, sep, max_disks = _layout(
+                max_y, max_x, n_cores, n_disks, n_sensors, hdr_rows_est)
+            procs_visible = False
+
+        # Sample processes only while the panel is on screen — zero cost otherwise.
+        if procs_visible:
+            if sampler is None:
+                sampler = ProcSampler(PROC_TTL, PROC_COUNT)
+            sampler.poll()
+        else:
+            sampler = None
 
         try:
             hdr_rows = draw_header(stdscr, hostname, interval, wifi_str, args.no_color, in_tmux)
@@ -554,6 +634,9 @@ def main_loop(stdscr, args) -> None:
                              max_count=max_disks)
             row += sep
             row = draw_temperatures(stdscr, row, args.no_color, sensors_cache)
+            if procs_visible and sampler is not None:
+                row += sep
+                row = draw_procs(stdscr, row, args.no_color, sampler)
 
             if compact:
                 try:
@@ -562,7 +645,8 @@ def main_loop(stdscr, args) -> None:
                 except curses.error:
                     pass
 
-            draw_footer(stdscr, interval)
+            draw_footer(stdscr, interval,
+                        "on" if procs_visible else ("hidden" if show_procs else "off"))
         except curses.error:
             pass  # mid-draw overflow; next resize will fix it
 
@@ -575,6 +659,9 @@ def main_loop(stdscr, args) -> None:
             key = stdscr.getch()
             if key in (ord('q'), ord('Q'), 27):
                 return
+            elif key in (ord('p'), ord('P')):
+                show_procs = not show_procs
+                break
             elif key == ord('+'):
                 interval = min(INTERVAL_MAX, round(interval + INTERVAL_STEP, 1))
                 interval = max(INTERVAL_MIN, interval)
@@ -609,6 +696,12 @@ def main() -> None:
         help="refresh interval in seconds (default: 1.0, range: 0.5–10)",
     )
     parser.add_argument(
+        "--procs",
+        action="store_true",
+        help="start with the top-processes panel on (toggle with `p`; off by default "
+             "because reading processes is what makes htop heavy)",
+    )
+    parser.add_argument(
         "--no-color",
         action="store_true",
         help="disable colors (for unsupported terminals / log capture)",
@@ -620,16 +713,13 @@ def main() -> None:
     )
     args = parser.parse_args()
 
+    # curses.wrapper restores the terminal and leaves the alternate screen, so the
+    # shell output from before launch comes back untouched. Do NOT run `reset`
+    # here: it clears the screen and wipes that history (issue #5).
     try:
         curses.wrapper(main_loop, args)
     except KeyboardInterrupt:
         pass
-    finally:
-        try:
-            curses.endwin()
-        except Exception:
-            pass
-        subprocess.run(['reset'], check=False)
 
 
 if __name__ == "__main__":

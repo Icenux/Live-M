@@ -12,7 +12,8 @@ priority: optional
 maintainer: Lukas <https://github.com/Icenux/Live-M>
 description: |-
   Lightweight CLI system monitor.
-  Live replacement for htop + psensors: CPU cores, RAM, SWAP, disk usage, temperatures and Wi-Fi.
+  Live replacement for htop + psensors: CPU cores, RAM, SWAP, disk usage, temperatures and Wi-Fi,
+  plus an optional top-processes panel (key p).
 vendor: Icenux
 homepage: https://github.com/Icenux/Live-M
 license: MIT

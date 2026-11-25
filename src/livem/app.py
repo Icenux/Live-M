@@ -3,7 +3,6 @@ import curses
 import datetime
 import os
 import socket
-import subprocess
 import time
 
 import psutil
@@ -620,16 +619,13 @@ def main() -> None:
     )
     args = parser.parse_args()
 
+    # curses.wrapper restores the terminal and leaves the alternate screen, so the
+    # shell output from before launch comes back untouched. Do NOT run `reset`
+    # here: it clears the screen and wipes that history (issue #5).
     try:
         curses.wrapper(main_loop, args)
     except KeyboardInterrupt:
         pass
-    finally:
-        try:
-            curses.endwin()
-        except Exception:
-            pass
-        subprocess.run(['reset'], check=False)
 
 
 if __name__ == "__main__":

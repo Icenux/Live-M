@@ -3,7 +3,7 @@
 Lightweight CLI system monitor — lightweight replacement for htop + psensors.
 
 [![Platform](https://img.shields.io/badge/platform-Linux-blue?logo=linux&logoColor=white)](https://www.linux.org/)
-[![Python](https://img.shields.io/badge/language-python_3.8+-green)](https://www.python.org/downloads/)
+[![Python](https://img.shields.io/badge/language-python_3.10+-green)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-yellow)](https://opensource.org/license/MIT)
 [![Stars](https://img.shields.io/github/stars/Icenux/Live-M?style=social)](https://github.com/Icenux/Live-M)
 
@@ -22,8 +22,8 @@ All panels update live. There is no full process list — that's why it's lighte
 
 ## Requirements
 
-- Linux (Debian / Ubuntu / Mint)
-- Python 3.8+
+- Linux (Debian / Ubuntu / Mint, Arch)
+- Python 3.10+ (Ubuntu 22.04 / Mint 21 and newer; Arch ships the latest)
 - python3-psutil
 
 ## Installation
@@ -35,6 +35,12 @@ sudo curl -fsSL https://icenux.github.io/icenux/icenux.asc -o /usr/share/keyring
 echo 'deb [signed-by=/usr/share/keyrings/icenux.asc] https://icenux.github.io/icenux/apt ./' \
   | sudo tee /etc/apt/sources.list.d/icenux.list
 sudo apt update && sudo apt install livem
+```
+
+On Arch Linux, install the package from the [latest release](https://github.com/Icenux/Live-M/releases/latest):
+
+```bash
+sudo pacman -U livem-X.Y.Z-1-any.pkg.tar.zst
 ```
 
 From source:

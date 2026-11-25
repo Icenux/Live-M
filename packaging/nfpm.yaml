@@ -19,12 +19,12 @@ homepage: https://github.com/Icenux/Live-M
 license: MIT
 
 depends:
-  - python3
+  - python3 (>= 3.10)
   - python3-psutil
 overrides:
   archlinux:
     depends:
-      - python
+      - python>=3.10
       - python-psutil
 
 contents:
